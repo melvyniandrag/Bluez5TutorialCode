@@ -90,6 +90,7 @@ void Listener::registerProfile(){
     g_variant_builder_add( &builder, "{sv}", "Name", g_variant_new("s", _profileName.c_str() ));
     g_variant_builder_add( &builder, "{sv}", "Channel", g_variant_new( "q", _rfcommPort ) );
     g_variant_builder_add( &builder, "{sv}", "AutoConnect", g_variant_new( "b", false ) );
+    g_variant_builder_add( &builder, "{sv}", "RequireAuthentication", g_variant_new("b", true) ); // Is this necessary?
 
     GVariant *gvar = g_dbus_proxy_call_sync( profileManager,
                                              "RegisterProfile",
