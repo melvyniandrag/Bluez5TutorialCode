@@ -41,4 +41,46 @@ void Listener::stopListening(){
 
 
 void Listener::registerProfile(){
+    std::cout << "start of registerProfile()" << std::endl;
+    assert( _p_systemBusConnection != NULL );
+    assert( _p_bluezProfileInterface != NULL );
+
+    g_autoptr( GError ) p_error = NULL;
+    g_autoptr( GDBusProxy ) profileManager = NULL;
+    profileManager = g_dbus_proxy_new_sync( _p_systemBusConnection,
+                                            G_DBUS_PROXY_FLAGS_NONE,
+                                            NULL,
+                                            "org.bluez",
+                                            "/org/bluez",
+                                            "org.bluez.ProfileManager1",
+                                            NULL,
+                                            &p_error );
+    g_assert_no_error( p_error );
+
+    _p_bluezProfileInterface - org_bluez_profile1_skeleton_new();
+
+    g_signal_connect( _p_bluezProfileInterface, "handle-new-connection", G_CALLBACK( handleNewConnectionCallback ), reinterpret_cast<gpointer>( this ) );
+    g_signal_connect( _p_bluezProfileInterface, "handle-request-disconnection", G_CALLBACK( requestDisconnectionCallback ), reinterpret_cast<gpointer>( this ) );
+    g_signal_connect( _p_bluezProfileInterface, "handle-release", G_CALLBACK( handleReleaseCallback ), reinterpret_cast<gpointer>( this ) );
+
+    g_dbus_interface_skeleton_export( G_DBUS_INTERFACE_SKELETON( _p_bluezProfileInterface ), _p_systemBusConnection, _objectPath.c_str(), &p_error );
+
+    g_assert_no_error( p_error );
+
+    GVariantBuilder builder;
+    g_variant_builder_init( &builder, G_VARIANT_TYPE_DICTIONARY );
+    g_variant_builder_init( &builder, "{sv}", "Name", g_variant_new("s", _profileName.c_str() ));
+    g_variant_builder_init( &builder, "{sv}", "Channel", g_variant_new( "q", _rfcommPort ) );
+    g_variant_builder_init( &builder, "{sv}", "AutoConnect", g_variant_new( "b", false ) );
+
+    GVariant *gvar = g_dbus_proxy_call_sync( profileManager,
+                                             "registerProfile",
+                                             g_variant_new( "(osa{sv})", _objectPath.c_str(), _profileUUID.c_str(), &builder ),
+                                             G_DBUS_CALL_FLAGS_NONE,
+                                             -1,
+                                             NULL,
+                                             &p_error );
+    g_assert_no_error( p_error );
+    g_variant_unref( gvar );
+    std::cout << "end of registerProfile()" << std::endl;
 }
