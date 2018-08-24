@@ -1,0 +1,23 @@
+<!--
+/*
+ * Compilation instructions:
+ *	 gdbus-codegen DASHDASHgenerate-c-code=Profile DASHDASHc-generate-object-manager bluez-profile1-objectmanager.xml 
+ */
+-->
+<node>
+	<interface name="org.bluez.Profile1">
+		<method name="Release">
+		</method>
+		
+		<method name="NewConnection">
+			<annotation name="org.gtk.GDBus.C.UnixFD" value="true"/>
+			<arg name="device" type="o" direction="in"/>
+			<arg name="fd" type="h" direction="in"/>
+			<arg name="fd_properties" type="a{sv}" direction="in"/>			
+		</method>
+
+		<method name="RequestDisconnection">
+			<arg name="device" type="o" direction="in"/>
+		</method>
+	</interface>
+</node>
