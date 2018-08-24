@@ -30,8 +30,20 @@ void Listener::startListening( Socket &p_socket){
     registerProfile();
     _p_socket = &p_socket;
     _heartbeat = true;
-    _listenThread = std::thread( Listener::listenTask, this );
+    _listenThread = std::thread( &Listener::listenTask, this );
 }
+
+void Listener::listenTask( void ){
+    std::cout << "begin listenTask()" << std::endl;
+
+    while( _heartbeat ){
+        g_main_context_iteration( NULL, false );
+        std::this_thread::sleep_for( std::chrono::seconds(1));
+    }
+
+    std::cout << "end listenTask()" << std::endl;
+}
+
 
 void Listener::stopListening(){
     _heartbeat = false;
@@ -45,7 +57,7 @@ void Listener::stopListening(){
 void Listener::registerProfile(){
     std::cout << "start of registerProfile()" << std::endl;
     assert( _p_systemBusConnection != NULL );
-    assert( _p_bluezProfileInterface != NULL );
+    assert( _p_bluezProfileInterface == NULL );
 
     g_autoptr( GError ) p_error = NULL;
     g_autoptr( GDBusProxy ) profileManager = NULL;
@@ -59,7 +71,9 @@ void Listener::registerProfile(){
                                             &p_error );
     g_assert_no_error( p_error );
 
-    _p_bluezProfileInterface - org_bluez_profile1_skeleton_new();
+    std::cout << 1 << std::endl;
+
+    _p_bluezProfileInterface = org_bluez_profile1_skeleton_new();
 
     g_signal_connect( _p_bluezProfileInterface, "handle-new-connection", G_CALLBACK( handleNewConnectionCallback ), reinterpret_cast<gpointer>( this ) );
     g_signal_connect( _p_bluezProfileInterface, "handle-request-disconnection", G_CALLBACK( requestDisconnectionCallback ), reinterpret_cast<gpointer>( this ) );
@@ -68,15 +82,17 @@ void Listener::registerProfile(){
     g_dbus_interface_skeleton_export( G_DBUS_INTERFACE_SKELETON( _p_bluezProfileInterface ), _p_systemBusConnection, _dbusObjectPath.c_str(), &p_error );
 
     g_assert_no_error( p_error );
+    
+    std::cout << 2 << std::endl;
 
     GVariantBuilder builder;
     g_variant_builder_init( &builder, G_VARIANT_TYPE_DICTIONARY );
-    g_variant_builder_init( &builder, "{sv}", "Name", g_variant_new("s", _profileName.c_str() ));
-    g_variant_builder_init( &builder, "{sv}", "Channel", g_variant_new( "q", _rfcommPort ) );
-    g_variant_builder_init( &builder, "{sv}", "AutoConnect", g_variant_new( "b", false ) );
+    g_variant_builder_add( &builder, "{sv}", "Name", g_variant_new("s", _profileName.c_str() ));
+    g_variant_builder_add( &builder, "{sv}", "Channel", g_variant_new( "q", _rfcommPort ) );
+    g_variant_builder_add( &builder, "{sv}", "AutoConnect", g_variant_new( "b", false ) );
 
     GVariant *gvar = g_dbus_proxy_call_sync( profileManager,
-                                             "registerProfile",
+                                             "RegisterProfile",
                                              g_variant_new( "(osa{sv})", _dbusObjectPath.c_str(), _profileUUID.c_str(), &builder ),
                                              G_DBUS_CALL_FLAGS_NONE,
                                              -1,
@@ -252,17 +268,6 @@ void Listener::disconnectSocket(){
     std::cout << "end disconnectSocket()" << std::endl;
 }
 
-void Listener::listenTask(){
-    std::cout << "begin listenTask()" << std::endl;
-
-    while( _heartbeat ){
-        g_main_context_iteration( NULL, false );
-        std::this_thread::sleep_for( std::chrono::seconds(1));
-    }
-
-    std:cout << "end listenTask()" << std::endl;
-}
-
 /********************************* CALLBACK FUNCTIONS ****************************************/
 
 gboolean Listener::handleNewConnectionCallback( OrgBluezProfile1 *p_object,
@@ -270,7 +275,7 @@ gboolean Listener::handleNewConnectionCallback( OrgBluezProfile1 *p_object,
                                                 GUnixFDList *p_fd_list,
                                                 const gchar *p_arg_device,
                                                 GVariant *p_arg_fd,
-                                                Variant *p_arg_fd_properties,
+                                                GVariant *p_arg_fd_properties,
                                                 gpointer p_listener )
 {
     std::cout << "begin handleNewConnectionCallback()" << std::endl;

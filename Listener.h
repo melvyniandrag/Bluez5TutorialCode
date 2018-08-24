@@ -2,6 +2,7 @@
 #define LISTENER_H
 
 #include <string>
+#include <cassert>
 #include <thread>
 #include <vector>
 #include <signal.h>
@@ -19,7 +20,7 @@ class Listener{
         void stopListening();
         void disconnect();
         
-    private():
+    private:
         Socket *_p_socket;
         std::thread _listenThread;
         GDBusConnection *_p_systemBusConnection;
@@ -38,7 +39,7 @@ class Listener{
         void createNewSocketConnection( const int32_t fd, const std::string DbusPath );
         void disconnectSocket();
         std::vector<std::string> findAllRecognizedDevices();
-        void listenTask();
+        void listenTask( void );
 
         static gboolean handleNewConnectionCallback( OrgBluezProfile1 *p_object,
                                                      GDBusMethodInvocation *p_invocation,
@@ -55,7 +56,7 @@ class Listener{
 
         static gboolean handleReleaseCallback( OrgBluezProfile1 *p_object,
                                       GDBusMethodInvocation *p_invocation, 
-                                      gpointer *p_listener );
+                                      gpointer p_listener );
 };
 
 #endif
