@@ -147,3 +147,144 @@ void Agent:removeAgent(){
     g_object_unref( _p_bluezAgentInterface ) ;
     _p_bluezAgentInterface = NULL;
 }
+
+void Agent::setDeviceTrusted( const std::string DevicePath ){
+    assert( _p_systemBusConnection != NULL );
+    g_autoptr( GError ) p_error;
+    g_autoptr( GDBusProxy ) deviceProperties_ptr = NULL;
+    deviceProperties_ptr = g_dbus_proxy_new_sync( _p_systemBusConnection,
+                                                  G_DBUS_PROXY_FLAGS_NONE,
+                                                  NULL,
+                                                  "org.bluez",
+                                                  DevicePath.c_str(),
+                                                  "org.freedekstop.DBus.Properties",
+                                                  NULL,
+                                                  &p_error);
+    g_assert_no_error( p_error );
+    GVariant *unregisterGvar_ptr = g_dbus_proxy_call_sync( deviceProperties_ptr,
+                                                           "Set",
+                                                           g_variant_new( "(ssv)", "org.bluez.Device1", "Trusted", g_variant_new( "b", true) ),
+                                                           G_DBUS_CALL_FLAGS_NONE,
+                                                           -1,
+                                                           NULL,
+                                                           &p_error );
+    g_assert_no_error( p_error );
+    g_variant_unref( unregisterGvar_ptr );
+}
+
+void Agent::enableAdapterPower( const std::string AdapterPath ){
+    std::cout << "begin enableAdapterPower()" << std::endl;
+    assert( _p_systemBusConnection != NULL );
+    g_autoptr( GError ) p_error = NULL;
+    g_autoptr( GDBusProxy ) adapterProperties_ptr = NULL;
+    adapterProperties_ptr = g_dbus_proxy_new_sync( _p_systemBusConnection,
+                                                   G_DBUS_PROXY_FLAGS_NONE,
+                                                   NULL,
+                                                   "org.bluez",
+                                                   AdapterPath.c_str(),
+                                                   "org.freedesktop.DBus.Properties",
+                                                   NULL,
+                                                   &p_error);
+    g_assert_no_error( p_error );
+    GVariant * unregisterGvar_ptr = g_dbus_proxy_call_sync( adapterProperties_ptr,
+                                                            "Set",
+                                                            g_variant_new( "(ssv)", "org.bluez.Adapter1", "Powered", g_variant_new( "b", true ) ),
+                                                            G_DBUS_CALL_FLAGS_NONE,
+                                                            -1,
+                                                            NULL,
+                                                            &p_error ); 
+    g_assert_no_error( p_error );
+    g_variant_unref( unregisterGvar_ptr );
+    std::cout << "end enableAdapterPower()" << std::endl;
+}
+
+void Agent::disableSSP( const std::string AdapterPath ){
+    std::cout << "begin disableSSP()" << std::endl;
+    const size_t StartLeafName = AdapterPath.rfind( '/' );
+    const std::string Command = "hciconfig " + AdapterPath.substr( StartLeafName, std::string::npos ) + " sspmode 0";
+    static_cast<void>( system( Command.c_str() ) );
+    std::cout << "end disableSSP()" << std::endl;
+}
+
+void Agent::enablePScan( const std::string AdapterPath ){
+    std::cout << "begin enablePScan()" << std::endl;
+    const size_t StartLeafName = AdapterPath.rfind( '/' );
+    const std::string Command = "hciconfig " + AdapterPath.substr( StartLeafName, std::string::npos ) + " pscan";
+    static_cast<void>( system( Command.c_str() ) );
+    std::cout << "end enablePScan()" << std::endl;
+}
+
+void Agent::initializeAdapter( const std::string AdapterPath ){
+    enableAdapterPower( AdapterPath );
+    disableSSP( AdapterPath );
+    enablePScan( AdapterPath );
+}
+
+std::string Agent::generatePinCode(){
+    // This is the pincode the device will expect for pairing requests?
+    return std::string{"1234"};
+}
+
+gboolean Agent::releaseCallback( OrgBluezAgent1 *object_ptr,
+                                 GDBusMethodInvocation * invocation_ptr,
+                                 gpointer agent_ptr )
+{
+    return true;
+}
+
+
+gboolean Agent::requestPinCodeCallback( OrgBluezAgent1 *p_object,
+                                        GDBusMethodInvocation *p_invocation,
+                                        const gchar *p_arg_device,
+                                        gpointer p_agent);
+{
+    
+}
+
+gboolean Agent::displayPinCodeCallback( OrgBluezAgent1 *p_object,
+                                        GDBusMethodInvocation *p_invocation,
+                                        const gchar *p_arg_device,
+                                        const gchar *p_arg_pincode,
+                                        gpointer p_agent );
+
+gboolean Agent::requestPasskeyCallBack( OrgBluezAgent1 *p_object,
+                                        GDBusMethodInvocation *p_invocation,
+                                        const gchar *p_arg_device,    
+                                        gpointer p_agent );
+
+gboolean Agent::displayPasskeyCallback( OrgBluezAgent1 *p_object,
+                                        GDBusMethodInvocation *p_invocation,
+                                        const gchar *p_arg_device,
+                                        const guint32 *p_arg_passkey,
+                                        const guint16 *p_arg-entered,
+                                        gpointer p_agent );
+
+gboolean Agent::requestConfirmationCallback( OrgBluezAgent1 *p_object,
+                                                GDBusMethodInvocation *p_invocation,
+                                                const gchar *p_arg_device,
+                                                const guint32 *p_arg_passkey,
+                                                gpointer p_agent );
+
+gboolean Agent::requestAuthorizationCallback( OrgBluezAgent1 *p_object,
+                                                GDBusMethodInvocation *p_invocation,
+                                                const gchar *p_arg_device,
+                                                gpointer p_agent );
+
+gboolean Agent::authorizeServiceCallback( OrgBluezAgent1 *p_object,
+                                            GDBusMethodInvocation *p_invocation,
+                                            const gchar *p_arg_device,
+                                            const gchar *p_arg_uuid,
+                                            gpointer p_agent );
+
+gboolean Agent::cancelCallback( OrgBluezAgent1 *p_object,
+                                GDBusMethodInvocation *p_invocation,
+                                gpointer p_agent );
+
+/* Object Manager Callbacks */
+gboolean Agent::objectAddedCallback( GDBusObjectManager *p_object_manager,
+                                        GDBusObjectProxy *p_added_object,
+                                        gpointer p_agent );
+
+gboolean Agent::Agent::objectRemovedCallback( GDBusObjectManager *p_object_manager,
+                                        GDBusObjectProxy *p_removed_object,
+                                        gpointer p_agent );
