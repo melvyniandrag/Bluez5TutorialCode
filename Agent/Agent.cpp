@@ -119,3 +119,31 @@ void Agentt::createAndExportAgent(){
     g_assert_no_error( p_error );
     g_variant_unref( defaultAgentGVar );
 }
+
+void Agent:removeAgent(){
+    assert( _p_systemBusConnection != NULL );
+    assert( _p_bluezAgentInterface != NULL );
+    g_autoptr( GError ) p_error = NULL;
+    g_autoptr( GDBusProxy ) agentManager = g_dbus_proxy_new_sync( _p_systemBusConnection,
+                                                                  G_DBUS_PROXY_FLAGS_NONE,
+                                                                  NULL,
+                                                                  "org.bluez",
+                                                                  "/org/bluez",
+                                                                  "org.bluez.AgentManager1",
+                                                                  NULL,
+                                                                  &p_error );
+    g_assert_no_error( p_error );
+    GVariant * unregisterGvar_ptr = g_dbus_proxy_call_sync( agentManager,
+                                                            "UnregisterAgent",
+                                                            g_variant_new( "(o)", _dbusObjectPath.c_str() ),
+                                                            G_DBUS_CALL_FLAGS_NONE,
+                                                            -1,
+                                                            NULL,
+                                                            &p_error );
+    g_assert_no_error( p_error );
+    g_variant_unref( unregisterGvar_ptr );
+    g_dbus_interface_skeleton_unexport( G_DBUS_INTERFACE_SKELETON( _p_bluezAgentInterface ) );
+
+    g_object_unref( _p_bluezAgentInterface ) ;
+    _p_bluezAgentInterface = NULL;
+}
