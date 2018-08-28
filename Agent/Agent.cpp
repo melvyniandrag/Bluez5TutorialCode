@@ -234,57 +234,114 @@ gboolean Agent::releaseCallback( OrgBluezAgent1 *object_ptr,
 
 
 gboolean Agent::requestPinCodeCallback( OrgBluezAgent1 *p_object,
-                                        GDBusMethodInvocation *p_invocation,
+                                        GDBusMethodInvocation *invocation_ptr,
                                         const gchar *p_arg_device,
                                         gpointer p_agent);
 {
-    
+    const BluetoothAgent *Agent_ptr = reinterpret_cast<BluetoothAgent *>( p_agent );
+    std::string expectedPin = Agent_ptr->_pinCode;
+    assert( expectedPin.length() > 0 && expectedPin <= 16 );
+    Agent_ptr->setDeviceTrusted( std::string( p_arg_device ) );
+    g_dbus_method_invocation_return_value( invocation_ptr, g_variant_new( "(s)", expectedPin.c_str() ) );
+    return true;
 }
 
 gboolean Agent::displayPinCodeCallback( OrgBluezAgent1 *p_object,
-                                        GDBusMethodInvocation *p_invocation,
+                                        GDBusMethodInvocation *invocation_ptr,
                                         const gchar *p_arg_device,
                                         const gchar *p_arg_pincode,
                                         gpointer p_agent );
+{
+    g_dbus_method_invocation_return_dbus_error( invocation_ptr, "org.bluez.Error.Rejected", "Connection rejected by base.");
+    return true;
+}
 
 gboolean Agent::requestPasskeyCallBack( OrgBluezAgent1 *p_object,
-                                        GDBusMethodInvocation *p_invocation,
+                                        GDBusMethodInvocation *invocation_ptr,
                                         const gchar *p_arg_device,    
                                         gpointer p_agent );
+{
+    g_dbus_method_invocation_return_dbus_error( invocation_ptr, "org.bluez.Error.Canceled", "Connection canceled by base." );
+    return true;
+}
 
 gboolean Agent::displayPasskeyCallback( OrgBluezAgent1 *p_object,
-                                        GDBusMethodInvocation *p_invocation,
+                                        GDBusMethodInvocation *invocation_ptr,
                                         const gchar *p_arg_device,
                                         const guint32 *p_arg_passkey,
                                         const guint16 *p_arg-entered,
                                         gpointer p_agent );
-
+{
+    return true;
+}
 gboolean Agent::requestConfirmationCallback( OrgBluezAgent1 *p_object,
-                                                GDBusMethodInvocation *p_invocation,
+                                                GDBusMethodInvocation *invocation_ptr,
                                                 const gchar *p_arg_device,
                                                 const guint32 *p_arg_passkey,
                                                 gpointer p_agent );
-
+{
+    g_dbus_method_invocation_return_dbus_error( invocation_ptr, "org.bluez.Error.Rejected", "Connection rejected by base." );
+    return true;
+}
 gboolean Agent::requestAuthorizationCallback( OrgBluezAgent1 *p_object,
-                                                GDBusMethodInvocation *p_invocation,
+                                                GDBusMethodInvocation *invocation_ptr,
                                                 const gchar *p_arg_device,
                                                 gpointer p_agent );
-
+{
+    g_dbus_method_invocation_return_dbus_error( invocation_ptr, "org.bluez.Error.Rejected", "Connection rejected by base." );
+    return true;
+}
 gboolean Agent::authorizeServiceCallback( OrgBluezAgent1 *p_object,
-                                            GDBusMethodInvocation *p_invocation,
+                                            GDBusMethodInvocation *invocation_ptr,
                                             const gchar *p_arg_device,
                                             const gchar *p_arg_uuid,
                                             gpointer p_agent );
-
+{
+    g_dbus_method_invocation_return_dbus_error( invocation_ptr, "org.bluez.Error.Rejected", "Connection rejected by base." );
+    return true;
+}
 gboolean Agent::cancelCallback( OrgBluezAgent1 *p_object,
-                                GDBusMethodInvocation *p_invocation,
+                                GDBusMethodInvocation *invocation_ptr,
                                 gpointer p_agent );
-
+{
+    return true;
+}
 /* Object Manager Callbacks */
-gboolean Agent::objectAddedCallback( GDBusObjectManager *p_object_manager,
-                                        GDBusObjectProxy *p_added_object,
-                                        gpointer p_agent );
+gboolean Agent::onHandleObjectAdded( GDBusObjectManager *object_manager_ptr,
+                                     GDBusObjectProxy *added_object_ptr,
+                                     gpointer agent_ptr )
+{
+   const gchar *ObjectPath_ptr = g_dbus_object_get_object_path( G_DBUS_OBJECT( added_object_ptr ) );
+   printf( "%s was added to BlueZ.", ObjectPath_ptr );
 
-gboolean Agent::Agent::objectRemovedCallback( GDBusObjectManager *p_object_manager,
-                                        GDBusObjectProxy *p_removed_object,
-                                        gpointer p_agent );
+   // Check to see if the new object is an adapter
+   GDBusInterface *blueZAdapterInterface_ptr = g_dbus_object_manager_get_interface( object_manager_ptr, ObjectPath_ptr, "org.bluez.Adapter1" );
+   if ( blueZAdapterInterface_ptr != NULL )
+   {
+      // The newly added object is a BlueZ Adapter1 (physical bluetooth dongle)
+      g_object_unref( blueZAdapterInterface_ptr );
+
+      BluetoothAgent *const agent_Ptr = reinterpret_cast<BluetoothAgent *>( agent_ptr );
+      assert( ObjectPath_ptr != NULL );
+      const std::string DevicePath( ObjectPath_ptr );
+
+      // Initialize the new adapter
+      agent_Ptr->initializeAdapter( DevicePath );
+   }
+   else
+   {
+      // Do nothing
+   }
+
+   return true;
+}
+
+gboolean BluetoothAgent::onHandleObjectRemoved( GDBusObjectManager *object_manager_ptr,
+                                                GDBusObjectProxy *removed_object_ptr,
+                                                gpointer listener_ptr )
+{
+   const gchar *ObjectPath_ptr = g_dbus_object_get_object_path( G_DBUS_OBJECT( removed_object_ptr ) );
+   printf( "%s was removed from BlueZ.", ObjectPath_ptr );
+
+   return true;
+}
